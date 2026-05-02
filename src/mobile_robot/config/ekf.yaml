@@ -1,0 +1,35 @@
+ekf_filter_node:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+    publish_tf: true
+
+    # Keep the EKF aligned with the simulated TF tree.
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom
+
+    # Wheel odometry comes from the Gazebo bridge.
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    odom0: /odom
+    odom0_config: [true,  true,  false, # x, y
+                   false, false, true,  # yaw
+                   true,  false, false, # vx
+                   false, false, true,  # vyaw
+                   false, false, false]
+    odom0_queue_size: 10
+
+    # IMU provides yaw, angular velocity, and linear acceleration.
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, true,   # yaw
+                  false, false, false,
+                  false, false, true,   # vyaw (angular velocity)
+                  true,  false, false]  # ax (linear acceleration)
+    imu0_nodelay: false
+    imu0_differential: false
+    imu0_relative: true
+    imu0_queue_size: 10
+    imu0_remove_gravitational_acceleration: true

@@ -1,0 +1,230 @@
+<?xml version="1.0"?>
+<robot>
+
+  <gazebo reference="${prefix}body_link">
+    <mu1>0.2</mu1>
+    <mu2>0.2</mu2>
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <gazebo reference="${prefix}wheel1_link">
+    <mu1>0.1</mu1>
+    <mu2>0.1</mu2>
+    <material>Gazebo/Yellow</material>
+  </gazebo>
+
+  <gazebo reference="${prefix}wheel2_link">
+    <mu1>0.1</mu1>
+    <mu2>0.1</mu2>
+    <material>Gazebo/Yellow</material>
+  </gazebo>
+
+  <gazebo reference="${prefix}caster_link">
+    <mu1>0.000002</mu1>
+    <mu2>0.000002</mu2>
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo reference="${prefix}imu_link">
+    <sensor name="${prefix}imu_sensor" type="imu">
+      <always_on>1</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+      <topic>imu</topic>
+      <imu>
+        <angular_velocity>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
+
+  <!-- A separate magnetometer sensor makes the simulated IMU stack 9-DOF. -->
+  <gazebo reference="${prefix}imu_link">
+    <sensor name="${prefix}magnetometer_sensor" type="magnetometer">
+      <always_on>1</always_on>
+      <update_rate>100</update_rate>
+      <visualize>false</visualize>
+      <topic>magnetometer</topic>
+      <magnetometer>
+        <x><noise type="gaussian"><mean>0.0</mean><stddev>0.1</stddev></noise></x>
+        <y><noise type="gaussian"><mean>0.0</mean><stddev>0.1</stddev></noise></y>
+        <z><noise type="gaussian"><mean>0.0</mean><stddev>0.1</stddev></noise></z>
+      </magnetometer>
+    </sensor>
+  </gazebo>
+
+  <!-- Stereo pair kept as a separate perception stream. -->
+  <gazebo reference="${prefix}stereo_left_camera_link">
+    <sensor name="${prefix}stereo_left_camera_sensor" type="camera">
+      <always_on>1</always_on>
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>true</visualize>
+      <update_rate>30.0</update_rate>
+      <topic>stereo_camera/left/image</topic>
+      <camera name="${prefix}stereo_left_camera">
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>100.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+        <camera_info_topic>stereo_camera/left/camera_info</camera_info_topic>
+        <optical_frame_id>${prefix}stereo_left_camera_optical_frame</optical_frame_id>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="${prefix}stereo_right_camera_link">
+    <sensor name="${prefix}stereo_right_camera_sensor" type="camera">
+      <always_on>1</always_on>
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>true</visualize>
+      <update_rate>30.0</update_rate>
+      <topic>stereo_camera/right/image</topic>
+      <camera name="${prefix}stereo_right_camera">
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>100.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+        <camera_info_topic>stereo_camera/right/camera_info</camera_info_topic>
+        <optical_frame_id>${prefix}stereo_right_camera_optical_frame</optical_frame_id>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- Arducam PTZ camera uses a configurable FOV to emulate zoom. -->
+  <gazebo reference="${prefix}arducam_camera_link">
+    <sensor name="${prefix}arducam_camera_sensor" type="camera">
+      <always_on>1</always_on>
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>true</visualize>
+      <update_rate>30.0</update_rate>
+      <topic>arducam/image_raw</topic>
+      <camera name="${prefix}arducam_camera">
+        <horizontal_fov>${arducam_horizontal_fov}</horizontal_fov>
+        <image>
+          <width>4000</width>
+          <height>3000</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>100.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+        <camera_info_topic>arducam/camera_info</camera_info_topic>
+        <optical_frame_id>${prefix}arducam_camera_optical_frame</optical_frame_id>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- The lidar is intentionally 2D: a single horizontal scan only. -->
+  <gazebo reference="${prefix}lidar_link">
+    <sensor name="${prefix}lidar_sensor" type="gpu_lidar">
+      <always_on>1</always_on>
+      <visualize>true</visualize>
+      <update_rate>10.0</update_rate>
+      <topic>scan</topic>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>720</samples>
+            <resolution>1</resolution>
+            <min_angle>-3.141592653589793</min_angle>
+            <max_angle>3.141592653589793</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.12</min>
+          <max>5.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.02</stddev>
+        </noise>
+      </lidar>
+    </sensor>
+  </gazebo>
+
+  <!-- Sensor rendering must be enabled once at the model level. -->
+  <gazebo>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>${prefix}wheel2_joint</left_joint>
+      <right_joint>${prefix}wheel1_joint</right_joint>
+      <wheel_separation>${wheel_separation}</wheel_separation>
+      <wheel_radius>${wheel_radius}</wheel_radius>
+      <max_linear_acceleration>10</max_linear_acceleration>
+      <topic>/cmd_vel</topic>
+      <tf_topic>/tf</tf_topic>
+      <odom_topic>/odom</odom_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>${prefix}base_footprint</child_frame_id>
+      <odom_publisher_frequency>30</odom_publisher_frequency>
+    </plugin>
+
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+      <topic>/joint_states</topic>
+      <joint_name>${prefix}wheel1_joint</joint_name>
+      <joint_name>${prefix}wheel2_joint</joint_name>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin filename="gz-sim-wheel-slip-system" name="gz::sim::systems::WheelSlip">
+      <wheel link_name="${prefix}wheel2_link">
+        <slip_compliance_lateral>0.1</slip_compliance_lateral>
+        <slip_compliance_longitudinal>0.2</slip_compliance_longitudinal>
+        <wheel_normal_force>40.0</wheel_normal_force>
+        <wheel_radius>${wheel_radius}</wheel_radius>
+      </wheel>
+
+      <wheel link_name="${prefix}wheel1_link">
+        <slip_compliance_lateral>0.1</slip_compliance_lateral>
+        <slip_compliance_longitudinal>0.2</slip_compliance_longitudinal>
+        <wheel_normal_force>40.0</wheel_normal_force>
+        <wheel_radius>${wheel_radius}</wheel_radius>
+      </wheel>
+    </plugin>
+  </gazebo>
+
+</robot>

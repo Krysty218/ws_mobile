@@ -1,0 +1,372 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="differential_drive_robot">
+
+  <!-- Keep a prefix hook so the model can be reused in multi-robot setups later. -->
+  <xacro:property name="prefix" value=""/>
+  <xacro:property name="pi_const" value="3.1415926535897931"/>
+
+  <!-- Chassis dimensions. -->
+  <xacro:property name="chassis_length" value="1.0"/>
+  <xacro:property name="chassis_width" value="0.6"/>
+  <xacro:property name="chassis_height" value="0.3"/>
+
+  <!-- Wheel layout. -->
+  <xacro:property name="wheel_radius" value="0.15"/>
+  <xacro:property name="wheel_width" value="0.10"/>
+  <xacro:property name="wheel_x_offset" value="${2.0 * wheel_radius}"/>
+  <xacro:property name="wheel_separation" value="${chassis_width + wheel_width}"/>
+  <xacro:property name="wheel_y_offset" value="${wheel_separation / 2.0}"/>
+
+  <!-- Sensor layout. -->
+  <xacro:property name="caster_radius" value="${wheel_radius}"/>
+  <xacro:property name="imu_size_xyz" value="0.05 0.05 0.02"/>
+  <xacro:property name="stereo_camera_size_xyz" value="0.03 0.12 0.03"/>
+  <xacro:property name="stereo_camera_baseline" value="0.14"/>
+  <xacro:property name="stereo_camera_mount_x" value="${chassis_length / 2.0}"/>
+  <xacro:property name="stereo_camera_mount_z" value="${wheel_radius + chassis_height}"/>
+  <xacro:property name="arducam_pan_initial" value="0.0"/>
+  <xacro:property name="arducam_tilt_initial" value="0.0"/>
+  <xacro:property name="arducam_horizontal_fov" value="0.78539816339"/>
+  <xacro:property name="arducam_pan_mount_x" value="${chassis_length / 2.0 - 0.10}"/>
+  <xacro:property name="arducam_pan_mount_z" value="${wheel_radius + chassis_height + 0.08}"/>
+  <xacro:property name="arducam_pan_link_size_xyz" value="0.05 0.05 0.03"/>
+  <xacro:property name="arducam_tilt_link_size_xyz" value="0.05 0.04 0.03"/>
+  <xacro:property name="arducam_camera_link_size_xyz" value="0.03 0.04 0.03"/>
+  <xacro:property name="lidar_mount_x" value="0.10"/>
+  <xacro:property name="lidar_mount_z" value="${chassis_height + wheel_radius}"/>
+
+  <!-- Mass properties. Densities are grouped so the robot can be rescaled safely. -->
+  <xacro:property name="body_density" value="2710.0"/>
+  <xacro:property name="wheel_density" value="2710.0"/>
+  <xacro:property name="caster_density" value="2710.0"/>
+  <xacro:property name="arducam_density" value="1800.0"/>
+
+  <xacro:property name="body_mass" value="${body_density * chassis_length * chassis_width * chassis_height}"/>
+  <xacro:property name="wheel_mass" value="${wheel_density * pi_const * wheel_radius * wheel_radius * wheel_width}"/>
+  <xacro:property name="caster_mass" value="${caster_density * (4.0 / 3.0) * pi_const * pow(caster_radius, 3)}"/>
+  <xacro:property name="arducam_pan_mass" value="${0.18}"/>
+  <xacro:property name="arducam_tilt_mass" value="${0.12}"/>
+  <xacro:property name="arducam_camera_mass" value="${0.08}"/>
+
+  <xacro:property name="body_z" value="${wheel_radius + chassis_height / 2.0}"/>
+  <xacro:property name="imu_z" value="${wheel_radius + chassis_height}"/>
+  <xacro:property name="caster_x" value="${-(chassis_length / 2.0 - caster_radius)}"/>
+
+  <!-- Visual materials keep the model readable. -->
+  <material name="body_gray">
+    <color rgba="0.55 0.55 0.55 1.0"/>
+  </material>
+
+  <material name="wheel_black">
+    <color rgba="0.12 0.12 0.12 1.0"/>
+  </material>
+
+  <material name="sensor_silver">
+    <color rgba="0.82 0.82 0.82 1.0"/>
+  </material>
+
+  <material name="camera_blue">
+    <color rgba="0.18 0.45 0.78 1.0"/>
+  </material>
+
+  <xacro:macro name="box_inertial" params="mass x y z origin_xyz:='0 0 0'">
+    <inertial>
+      <origin xyz="${origin_xyz}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${(1.0 / 12.0) * mass * (y * y + z * z)}"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="${(1.0 / 12.0) * mass * (x * x + z * z)}"
+        iyz="0.0"
+        izz="${(1.0 / 12.0) * mass * (x * x + y * y)}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cylinder_inertial" params="mass radius length axis:='z'">
+    <xacro:property name="ixy_axis" value="${(1.0 / 12.0) * mass * (3.0 * radius * radius + length * length)}"/>
+    <xacro:property name="iz_axis" value="${0.5 * mass * radius * radius}"/>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <xacro:if value="${axis == 'z'}">
+        <inertia ixx="${ixy_axis}" ixy="0.0" ixz="0.0" iyy="${ixy_axis}" iyz="0.0" izz="${iz_axis}"/>
+      </xacro:if>
+      <xacro:if value="${axis == 'y'}">
+        <inertia ixx="${ixy_axis}" ixy="0.0" ixz="0.0" iyy="${iz_axis}" iyz="0.0" izz="${ixy_axis}"/>
+      </xacro:if>
+      <xacro:if value="${axis == 'x'}">
+        <inertia ixx="${iz_axis}" ixy="0.0" ixz="0.0" iyy="${ixy_axis}" iyz="0.0" izz="${ixy_axis}"/>
+      </xacro:if>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="sphere_inertial" params="mass radius">
+    <xacro:property name="inertia" value="${(2.0 / 5.0) * mass * radius * radius}"/>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${inertia}" ixy="0.0" ixz="0.0" iyy="${inertia}" iyz="0.0" izz="${inertia}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- Small helper to avoid repeating the wheel geometry. -->
+  <xacro:macro name="wheel_link" params="name">
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="1.57079632679 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="wheel_black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="1.57079632679 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <xacro:cylinder_inertial mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}" axis="y"/>
+    </link>
+  </xacro:macro>
+
+  <!-- Keep the Gazebo-specific systems separate from the base robot description. -->
+  <xacro:include filename="robot.gazebo"/>
+
+  <link name="${prefix}base_footprint"/>
+
+  <joint name="${prefix}body_link_joint" type="fixed">
+    <parent link="${prefix}base_footprint"/>
+    <child link="${prefix}body_link"/>
+  </joint>
+
+  <link name="${prefix}body_link">
+    <visual>
+      <origin xyz="0 0 ${body_z}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="body_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${body_z}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertial
+      mass="${body_mass}"
+      x="${chassis_length}"
+      y="${chassis_width}"
+      z="${chassis_height}"
+      origin_xyz="0 0 ${body_z}"/>
+  </link>
+
+  <joint name="${prefix}wheel1_joint" type="continuous">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}wheel1_link"/>
+    <origin xyz="${wheel_x_offset} ${-wheel_y_offset} ${wheel_radius}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="50000" velocity="10"/>
+    <dynamics damping="1.0" friction="0.1"/>
+  </joint>
+
+  <xacro:wheel_link name="${prefix}wheel1_link"/>
+
+  <joint name="${prefix}wheel2_joint" type="continuous">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}wheel2_link"/>
+    <origin xyz="${wheel_x_offset} ${wheel_y_offset} ${wheel_radius}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="50000" velocity="10"/>
+    <dynamics damping="1.0" friction="0.1"/>
+  </joint>
+
+  <xacro:wheel_link name="${prefix}wheel2_link"/>
+
+  <link name="${prefix}caster_link">
+    <visual>
+      <geometry>
+        <sphere radius="${caster_radius}"/>
+      </geometry>
+      <material name="sensor_silver"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="${caster_radius}"/>
+      </geometry>
+    </collision>
+    <xacro:sphere_inertial mass="${caster_mass}" radius="${caster_radius}"/>
+  </link>
+
+  <joint name="${prefix}caster_joint" type="fixed">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}caster_link"/>
+    <origin xyz="${caster_x} 0 ${caster_radius}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="${prefix}imu_link">
+    <visual>
+      <geometry>
+        <box size="${imu_size_xyz}"/>
+      </geometry>
+      <material name="sensor_silver"/>
+    </visual>
+  </link>
+
+  <joint name="${prefix}imu_joint" type="fixed">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}imu_link"/>
+    <origin xyz="0 0 ${imu_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Magnetometer stays on the IMU mount so the simulation exposes a 9-DOF sensor suite. -->
+  <link name="${prefix}stereo_camera_mount_link">
+    <visual>
+      <geometry>
+        <box size="${stereo_camera_size_xyz}"/>
+      </geometry>
+      <material name="sensor_silver"/>
+    </visual>
+  </link>
+
+  <joint name="${prefix}stereo_camera_joint" type="fixed">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}stereo_camera_mount_link"/>
+    <origin xyz="${stereo_camera_mount_x} 0 ${stereo_camera_mount_z}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="${prefix}stereo_left_camera_link">
+    <visual>
+      <geometry>
+        <box size="${stereo_camera_size_xyz}"/>
+      </geometry>
+      <material name="sensor_silver"/>
+    </visual>
+  </link>
+
+  <joint name="${prefix}stereo_left_camera_joint" type="fixed">
+    <parent link="${prefix}stereo_camera_mount_link"/>
+    <child link="${prefix}stereo_left_camera_link"/>
+    <origin xyz="0 ${stereo_camera_baseline / 2.0} 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="${prefix}stereo_left_camera_optical_frame"/>
+
+  <joint name="${prefix}stereo_left_camera_optical_joint" type="fixed">
+    <parent link="${prefix}stereo_left_camera_link"/>
+    <child link="${prefix}stereo_left_camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi_const / 2.0} 0 ${-pi_const / 2.0}"/>
+  </joint>
+
+  <link name="${prefix}stereo_right_camera_link">
+    <visual>
+      <geometry>
+        <box size="${stereo_camera_size_xyz}"/>
+      </geometry>
+      <material name="sensor_silver"/>
+    </visual>
+  </link>
+
+  <joint name="${prefix}stereo_right_camera_joint" type="fixed">
+    <parent link="${prefix}stereo_camera_mount_link"/>
+    <child link="${prefix}stereo_right_camera_link"/>
+    <origin xyz="0 ${-stereo_camera_baseline / 2.0} 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="${prefix}stereo_right_camera_optical_frame"/>
+
+  <joint name="${prefix}stereo_right_camera_optical_joint" type="fixed">
+    <parent link="${prefix}stereo_right_camera_link"/>
+    <child link="${prefix}stereo_right_camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi_const / 2.0} 0 ${-pi_const / 2.0}"/>
+  </joint>
+
+  <!-- Arducam PTZ assembly.
+       Zoom is handled as a configurable horizontal FOV, not a separate actuator. -->
+  <link name="${prefix}arducam_pan_link">
+    <visual>
+      <geometry>
+        <box size="${arducam_pan_link_size_xyz}"/>
+      </geometry>
+      <material name="camera_blue"/>
+    </visual>
+    <xacro:box_inertial
+      mass="${arducam_pan_mass}"
+      x="0.05"
+      y="0.05"
+      z="0.03"/>
+  </link>
+
+  <!-- Keep the PTZ branch static in TF for now.
+       This avoids RViz transform gaps until we add a dedicated joint controller. -->
+  <joint name="${prefix}arducam_pan_joint" type="fixed">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}arducam_pan_link"/>
+    <origin xyz="${arducam_pan_mount_x} 0 ${arducam_pan_mount_z}" rpy="0 0 ${arducam_pan_initial}"/>
+  </joint>
+
+  <link name="${prefix}arducam_tilt_link">
+    <visual>
+      <geometry>
+        <box size="${arducam_tilt_link_size_xyz}"/>
+      </geometry>
+      <material name="camera_blue"/>
+    </visual>
+    <xacro:box_inertial
+      mass="${arducam_tilt_mass}"
+      x="0.05"
+      y="0.04"
+      z="0.03"/>
+  </link>
+
+  <joint name="${prefix}arducam_tilt_joint" type="fixed">
+    <parent link="${prefix}arducam_pan_link"/>
+    <child link="${prefix}arducam_tilt_link"/>
+    <origin xyz="0 0 0" rpy="0 ${arducam_tilt_initial} 0"/>
+  </joint>
+
+  <link name="${prefix}arducam_camera_link">
+    <visual>
+      <geometry>
+        <box size="${arducam_camera_link_size_xyz}"/>
+      </geometry>
+      <material name="camera_blue"/>
+    </visual>
+    <xacro:box_inertial
+      mass="${arducam_camera_mass}"
+      x="0.03"
+      y="0.04"
+      z="0.03"/>
+  </link>
+
+  <joint name="${prefix}arducam_camera_joint" type="fixed">
+    <parent link="${prefix}arducam_tilt_link"/>
+    <child link="${prefix}arducam_camera_link"/>
+    <origin xyz="0.05 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="${prefix}arducam_camera_optical_frame"/>
+
+  <joint name="${prefix}arducam_camera_optical_joint" type="fixed">
+    <parent link="${prefix}arducam_camera_link"/>
+    <child link="${prefix}arducam_camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi_const / 2.0} 0 ${-pi_const / 2.0}"/>
+  </joint>
+
+  <link name="${prefix}lidar_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.04" length="0.05"/>
+      </geometry>
+      <material name="sensor_silver"/>
+    </visual>
+  </link>
+
+  <joint name="${prefix}lidar_joint" type="fixed">
+    <parent link="${prefix}body_link"/>
+    <child link="${prefix}lidar_link"/>
+    <origin xyz="${lidar_mount_x} 0 ${lidar_mount_z}" rpy="0 0 0"/>
+  </joint>
+
+</robot>
